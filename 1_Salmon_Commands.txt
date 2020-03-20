@@ -1,0 +1,118 @@
+
+
+#####Step1 Data Preparation#####
+#All the practice samples can be downloaded from NCBI with their SRR ID.
+
+NAD treatment, DBA/2J strain
+Accession renamed
+SRR5061316 T1
+SRR5061317 T2
+SRR5061318 T3
+SRR5061319 T4
+SRR5061320 T5
+SRR5061321 T6
+SRR5061322 T7
+
+
+water treatment, DBA/2J strain
+Accession renamed
+SRR5061323 C1
+SRR5061324 C2	
+SRR5061325 C3	
+SRR5061326 C4	
+SRR5061327 C5	
+SRR5061328 C6	
+SRR5061329 C7	
+
+Download Control
+$ fastq-dump --split-files SRR5061323 &
+$ fastq-dump --split-files SRR5061324 &
+$ fastq-dump --split-files SRR5061325 &
+$ fastq-dump --split-files SRR5061326 &
+$ fastq-dump --split-files SRR5061327 &
+$ fastq-dump --split-files SRR5061328 &
+$ fastq-dump --split-files SRR5061329 &
+
+#Reference transcriptome can be accessed via:
+
+
+ftp://ftp.ensembl.org/pub/release-84/fasta/mus_musculus/cdna/Mus_musculus.GRCm38.cdna.all.fa.gz
+
+
+#####Step2 Add Indexes for Reference#####
+
+#Salmon manual page: https://salmon.readthedocs.io/en/latest/salmon.html
+
+#load salmon module in your bash
+
+$ module load Salmon/0.11.3-linux_x86_64
+
+
+#create kmers31 index for reference transcriptome
+$ salmon index -t Mus_musculus.GRCm38.cdna.all.fa.gz  -i transcripts_index31 --type quasi -k 31
+
+
+###########################
+##### Additional Steps#####
+#If you want to see which kmers may be appropriate for your data, you can follow next three steps for testing
+#Reference: ftp://ftp.ensembl.org/pub/release-81/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+#RNA-Seq:https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos1/sra-pub-run-1/SRR493369/SRR493369.2
+
+
+#1 build salmon indexes for transcriptome using different kmers 19-31
+#k size selected here will act as the minimum acceptable length for a valid match. A smaller value of k may slightly improve sensitivity. Thus , it is important to find the appropriate kmers.
+
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index31 --type quasi -k 31
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index29 --type quasi -k 29
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index27 --type quasi -k 27
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index25 --type quasi -k 25
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index23 --type quasi -k 23
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index21 --type quasi -k 21
+$ salmon index -t Homo_sapiens.GRCh38.cdna.all.fa -i transcripts_index19 --type quasi -k 19
+
+#2 Test different kmers with one sample: (HOXA1KD_miseq_repA.fastq)
+
+$ salmon quant -i transcripts_index31 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts31_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index29 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts29_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index27 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts27_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index25 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts25_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index23 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts23_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index21 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts21_quant_HOX1KD_miseq_repA
+$ salmon quant -i transcripts_index19 -l U -r HOXA1KD_miseq_repA.fastq -o transcripts19_quant_HOX1KD_miseq_repA
+
+#3 Comparing results and choose an approroate kmers: find the result in dir <- cheat/kmer_test
+
+
+kmer31 Mapping rate = 0.257898%
+kmer29 Mapping rate = 3.0947%
+kmer27 Mapping rate = 36.0792%
+kmer25 Mapping rate = 88.4022%
+kmer23 Mapping rate = 88.2478%
+kmer21 Mapping rate = 87.6984%
+kmer19 Mapping rate = 83.1122%
+
+
+##According to above results, it is apparently that kmers31 is the most appropriate length for mapping
+#############################
+
+
+#####Step3 Bias Correction Quantification on Glaucoma Transcriptomic Data#####
+
+#Library type (-l) can be found by : https://salmon.readthedocs.io/en/latest/library_type.html
+
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T1_1.fastq.gz -2 T1_2.fastq.gz -o E_out_bias_T1
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T2_1.fastq.gz -2 T2_2.fastq.gz -o E_out_bias_T2
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T3_1.fastq.gz -2 T3_2.fastq.gz -o E_out_bias_T3
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T4_1.fastq.gz -2 T4_2.fastq.gz -o E_out_bias_T4
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T5_1.fastq.gz -2 T5_2.fastq.gz -o E_out_bias_T5
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T6_1.fastq.gz -2 T6_2.fastq.gz -o E_out_bias_T6
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 T7_1.fastq.gz -2 T7_2.fastq.gz -o E_out_bias_T7
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C1_1.fastq.gz -2 C1_2.fastq.gz -o E_out_bias_C1
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C2_1.fastq.gz -2 C2_2.fastq.gz -o E_out_bias_C2
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C3_1.fastq.gz -2 C3_2.fastq.gz -o E_out_bias_C3
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C4_1.fastq.gz -2 C4_2.fastq.gz -o E_out_bias_C4
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C5_1.fastq.gz -2 C5_2.fastq.gz -o E_out_bias_C5
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C6_1.fastq.gz -2 C6_2.fastq.gz -o E_out_bias_C6
+$ salmon quant -p 8 -i transcripts_index31 --seqBias --gcBias --posBias -l IU -1 C7_1.fastq.gz -2 C7_2.fastq.gz -o E_out_bias_C7
+
+##########END###########
